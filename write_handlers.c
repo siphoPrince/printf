@@ -149,41 +149,58 @@ int write_num(int ind, char buffer[],
  *
  * Return: Number of written chars.
  */
-int handle_write_float(double value, char buffer[],
+int write_unsgnd(int is_negative, int ind,
+	char buffer[],
 	int flags, int width, int precision, int size)
 {
-	int i = 0;
+	/* The number is stored at the bufer's right and starts at position i */
+	int length = BUFF_SIZE - ind - 1, i = 0;
 	char padd = ' ';
 
-	if (flags & F_ZERO)
-		padd = '0';
-	i = snprintf(buffer, BUFF_SIZE, "%.*f", precision, value);
+	UNUSED(is_negative);
+	UNUSED(size);
 
-	if (i < 0 || i >= BUFF_SIZE)
-	return (-1)
+	if (precision == 0 && ind == BUFF_SIZE - 2 && buffer[ind] == '0')
+		return (0); /* printf(".0d", 0)  no char is printed */
 
-	if (width > i)
+	if (precision > 0 && precision < length)
+		padd = ' ';
+
+	while (precision > length)
 	{
-	buffer[BUFF_SIZE - 1] = '\0';
-	for (int j = 0; j < width - i; j++)
-	buffer[BUFF_SIZE - j - 2] = padd;
-
-	if (flags & F_MINUS)
-	return (write(1, &buffer[0], i) +
-	write(1, &buffer[BUFF_SIZE - j - 1], width - i));
-	else
-	return (write(1, &buffer[BUFF_SIZE - j - 1], width - i) +
-	write(1, &buffer[0], i));
+		buffer[--ind] = '0';
+		length++;
 	}
 
-	return (write(1, &buffer[0], i));
+	if ((flags & F_ZERO) && !(flags & F_MINUS))
+		padd = '0';
+
+	if (width > length)
+	{
+		for (i = 0; i < width - length; i++)
+			buffer[i] = padd;
+
+		buffer[i] = '\0';
+
+		if (flags & F_MINUS) /* Asign extra char to left of buffer [buffer>padd]*/
+		{
+			return (write(1, &buffer[ind], length) + write(1, &buffer[0], i));
+		}
+		else /* Asign extra char to left of padding [padd>buffer]*/
+		{
+			return (write(1, &buffer[0], i) + write(1, &buffer[ind], length));
+		}
+	}
+
+	return (write(1, &buffer[ind], length));
 }
+
 /**
  * write_pointer - Write a memory address
  * @buffer: Arrays of chars
  * @ind: Index at which the number starts in the buffer
  * @length: Length of number
- * @width: Width specifier
+ * @width: Wwidth specifier
  * @flags: Flags specifier
  * @padd: Char representing the padding
  * @extra_c: Char representing extra char
